@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+
+import logging
+import os
+
+import pymongo
+from pymongo.errors import PyMongoError
+from pymongo.server_api import ServerApi
+
+MONGODB_ATLAS_URL = os.environ.get("MONGODB_ATLAS_URL")
+MONGODB_ATLAS_USER = os.environ.get("MONGODB_ATLAS_USER")
+MONGODB_ATLAS_PWD = os.environ.get("MONGODB_ATLAS_PWD")
+
+def main():
+    try:
+	client.admin.command("ping")
+        logging.info("Connected to MongoDB Atlas.")
+
+    except (PyMongoError, ValueError) as error:
+        logging.error("Could not generate the report: %s", error)
+
+    finally:
+        if client is not None:
+            client.close()
+    )
+
+    client = None
+
+    try:
+        if not all([
+            MONGODB_ATLAS_URL,
+            MONGODB_ATLAS_USER,
+            MONGODB_ATLAS_PWD,
+        ]):
+            raise ValueError("One or more Atlas environment variables are missing.")
+
+
+        client = pymongo.MongoClient(
+            MONGODB_ATLAS_URL,
+            username=MONGODB_ATLAS_USER,
+            password=MONGODB_ATLAS_PWD,
+            authSource="admin",
+            server_api=ServerApi("1"),
+            serverSelectionTimeoutMS=10000,
+        )
+
+    client.admin.command("ping")
+        logging.info("Connected to MongoDB Atlas.")
+
+    database = client["bookstore"]
+        authors = database["authors"]
+        books = database["books"]
+
+        author_ids = ["author_002", "author_003", "author_austen"]
+        author_filter = {"_id": {"$in": author_ids}}
+
+        author_count = authors.count_documents(author_filter)
+        print(f"Authors: {author_count}\n")
+
+        for author_id in author_ids:
+            author = authors.find_one({"_id": author_id})
+
+            if author is None:
+                logging.warning("Author not found: %s", author_id)
+                continue
+
+            print(author["name"])
+
+            linked_books = books.find({"author_ids": author["_id"]})
+            for book in linked_books:
+                print(f"  {book['title']} ({book['published_year']})")
+
+            print()
+
+    except (PyMongoError, ValueError) as error:
+        logging.error("Could not generate the report: %s", error)
+        raise SystemExit(1)
+
+    finally:
+        # Release the client even if a connection or query fails.
+        if client is not None:
+            client.close()
+            logging.info("MongoDB client closed.")
+
+
+if __name__ == "__main__":
+    main()
